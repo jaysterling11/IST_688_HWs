@@ -116,4 +116,4 @@ if url:
 
         except APIError as e:
 
-            st.error(f"OpenAI API error: {e}"
+            st.error(f"OpenAI API error: {e}")
