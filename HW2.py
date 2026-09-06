@@ -1,13 +1,14 @@
 import streamlit as st
+import requests
+from bs4 import BeautifulSoup
 from openai import APIError, AuthenticationError, OpenAI
-import fitz
 
 # Show title and description
-st.title("Document Summarizer")
+st.title("URL Summarizer")
 
 st.write(
-    "Upload a document below, then choose a summary type and model from the "
-    "sidebar – GPT will generate a summary for you!"
+    "Enter a webpage URL below, then choose a summary type and model "
+    "from the sidebar."
 )
 
 openai_api_key = st.secrets["openai_api_key"]
@@ -33,6 +34,12 @@ if openai_api_key:
         st.error(f"Unable to connect to OpenAI: {e}")
         st.stop()
 
+# URL input
+url = st.text_input(
+    "Enter a webpage URL:",
+    placeholder="https://example.com"
+)
+
 summary_type = st.sidebar.selectbox(
     "Choose a summary type",
     (
@@ -46,6 +53,16 @@ use_advanced_model = st.sidebar.checkbox("Use advanced model")
  
 # Map the checkbox choice to an actual model name
 model = "gpt-5-mini" if use_advanced_model else "gpt-5-nano"
+
+# Output language
+language = st.sidebar.selectbox(
+    "Select the output language",
+    (
+        "English",
+        "French",
+        "Spanish",
+    ),
+)
  
 instruction_map = {
     "Summarize in 100 words": "Summarize the following document in about 100 words.",
@@ -58,82 +75,45 @@ instruction_map = {
 }
 instruction = instruction_map[summary_type]
 
-# Function for reading PDFs
-def read_pdf(file_obj):
-    pdf_bytes = file_obj.getvalue()
-
-    if not pdf_bytes:
-        st.error("The uploaded PDF is empty or could not be read.")
-        st.stop()
-
-    doc = fitz.open(
-        stream=pdf_bytes,
-        filetype="pdf"
-    )
-
-    text = "\n".join(
-        page.get_text()
-        for page in doc
-    )
-
-    doc.close()
-
-    return text
-
-
-# Upload document
-uploaded_file = st.file_uploader(
-    "Upload a document",
-    type=["txt", "pdf"],
-)
-
-
-# Process uploaded document
-document = ""
-file_extension = None
-
-if uploaded_file is not None:
-
-    file_extension = uploaded_file.name.split(".")[-1].lower()
-
-    if file_extension == "txt":
-
-        document = uploaded_file.getvalue().decode("utf-8")
-
-    elif file_extension == "pdf":
-
-        document = read_pdf(uploaded_file)
-
-    else:
-
-        st.error("Unsupported file type.")
-        st.stop()
-
-
-# Answer question
-if uploaded_file is not None:
-    messages = [
-        {
-            "role": "user",
-            "content": (
-                f"{instruction}\n\n"
-                f"Document:\n\n"
-                f"{document}\n\n"
-            ),
-        }
-    ]
-
+def read_url_content(url):
     try:
+        response = requests.get(url)
+        response.raise_for_status() # Raise an exception for HTTP errors
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return soup.get_text()
+    except requests.RequestException as e:
+        print(f"Error reading {url}: {e}")
+        return None
 
-        # Generate an answer using the OpenAI API
-        stream = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            stream=True,
-        )
+if url:
 
-        st.write_stream(stream)
+    document = read_url_content(url)
 
-    except APIError as e:
+    if document:
 
-        st.error(f"OpenAI API error: {e}")
+        messages = [
+            {
+                "role": "user",
+                "content": (
+                    f"{instruction}\n\n"
+                    f"Write the summary in {language}.\n\n"
+                    f"Webpage content:\n\n"
+                    f"{document}"
+                ),
+            }
+        ]
+
+        try:
+
+            # Generate an answer using the OpenAI API
+            stream = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                stream=True,
+            )
+
+            st.write_stream(stream)
+
+        except APIError as e:
+
+            st.error(f"OpenAI API error: {e}"
