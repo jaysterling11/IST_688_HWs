@@ -27,7 +27,6 @@ system_prompt = {
         "Do not ask the user if they want more information. The program "
         "will ask that question separately."
     )
-}
 
 if "messages" not in st.session_state:
     st.session_state["messages"] = [
