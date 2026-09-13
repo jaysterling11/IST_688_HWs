@@ -1,155 +1,285 @@
-import streamlit as st 
+import streamlit as st
+import requests
+from bs4 import BeautifulSoup
 from openai import OpenAI
-import numpy as np
+from google import genai
 
-st.title("MY Lab 3 question answering chatbot")
+st.title("Baseball Question Answering Chatbot")
 
-openAI_model = st.sidebar.selectbox(
-    "Which Model?",
-    ("mini", "regular")
+st.write(
+    "This chatbot answers questions using information from up to two "
+    "webpages that you provide. The webpages are included in the chatbot's "
+    "system prompt so they remain available throughout the conversation. "
+    "The chatbot also uses a conversation memory buffer containing the "
+    "last 6 messages, which represents 3 user-assistant exchanges. "
+    "You can choose between OpenAI and Google Gemini in the sidebar."
 )
 
-if openAI_model == "mini":
-    model_to_use = "gpt-4o-mini"
-else:
-    model_to_use = "gpt-4o"
+st.sidebar.header("Chatbot Settings")
 
-if 'client' not in st.session_state:
-    openai_api_key = st.secrets["openai_api_key"]
-    st.session_state.client = OpenAI(api_key=openai_api_key)
+url_1 = st.sidebar.text_input(
+    "Enter URL 1:",
+    placeholder="https://www.example.com"
+)
+
+url_2 = st.sidebar.text_input(
+    "Enter URL 2 (optional):",
+    placeholder="https://www.example.com"
+)
+
+llm_choice = st.sidebar.selectbox(
+    "Select the LLM:",
+    (
+        "OpenAI",
+        "Google Gemini",
+    )
+)
+
+if llm_choice == "OpenAI":
+
+    st.sidebar.write("Model: gpt-5.6")
+
+else:
+
+    st.sidebar.write("Model: gemini-2.5-pro")
+
+if 'openai_client' not in st.session_state:
+    openai_api_key = st.secrets.get("openai_api_key")
+    if openai_api_key:
+        st.session_state.openai_client = OpenAI(api_key=openai_api_key)
+else:
+    st.session_state.openai_client = None
+
+if 'gemini_client' not in st.session_state:
+    gemini_api_key = st.secrets.get("gemini_api_key")
+    if gemini_api_key:
+        st.session_state.gemini_client = genai.Client(api_key=gemini_api_key)
+else:
+    st.session_state.gemini_client = None
+
+def read_url_content(url):
+    try:
+        response = requests.get(url)
+        response.raise_for_status() # Raise an exception for HTTP errors
+        soup = BeautifulSoup(response.content, 'html.parser')
+        return soup.get_text()
+    except requests.RequestException as e:
+        print(f"Error reading {url}: {e}")
+        return None
+
+documents = []
+
+if url_1:
+    content_1 = read_url_content(url_1)
+    if content_1:
+        documents.append(
+            f"Document 1\n URL: {url_1}\n\n {content_1}"
+        )
+
+if url_2:
+    content_2 = read_url_content(url_2)
+    if content_2:
+        documents.append(
+            f"Document 2\n URL: {url_2}\n\n {content_2}"
+        )
+
+if documents:
+    webpage_content = "\n\n".join(documents)
+else:
+    webpage_content = ("No webpages have been provided yet. "
+        "Ask the user to enter at least one URL."
+    )
 
 system_prompt = {
     "role": "system",
     "content": (
-        "You are a friendly chatbot. Answer questions so that a 10-year-old "
-        "can understand them. Use simple words, short explanations, and "
-        "examples when helpful. Avoid complicated technical language. "
-        "Do not ask the user if they want more information. The program "
-        "will ask that question separately."
+        "You are a friendly question-answering chatbot. "
+        "Answer questions using the webpage information provided below "
+        "when it is relevant. Do not make up information that is not "
+        "supported by the webpages. If the answer cannot be found in "
+        "the provided webpages, clearly say that the information was "
+        "not found in the provided sources. "
+        "\n\n"
+        "The following webpage information is permanent context for "
+        "this conversation and should be included in every API request. "
+        "\n\n"
+        "WEBPAGE CONTENT:\n\n"
+        f"{webpage_content}"
+    )
+}
+
+if documents:
+    st.sidebar.success(
+        f"{len(documents)} webpage(s) loaded."
+    )
+
+else:
+    st.sidebar.info(
+        "Enter at least one URL to provide information "
+        "for the chatbot."
     )
 
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [
+    st.session_state.messages = []
+
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.write(
+            message["content"]
+        )
+
+prompt = st.chat_input(
+    "Ask a question about the webpages..."
+)
+
+
+if prompt:
+    if not documents:
+        st.error(
+            "Please enter at least one URL in the sidebar "
+            "before asking a question."
+        )
+        st.stop()
+
+    st.session_state.messages.append(
         {
-            "role": "assistant",
-            "content": "Hello! I am your chatbot. How can I assist you today?"
+            "role": "user",
+            "content": prompt
         }
-    ]
-
-if "waiting_for_more_info" not in st.session_state:
-    st.session_state["waiting_for_more_info"] = False
-
-if "current_topic" not in st.session_state:
-    st.session_state["current_topic"] = ""
-
-for msg in st.session_state.messages:
-    chat_msg = st.chat_message(msg["role"])
-    chat_msg.write(msg["content"])
-
-if prompt := st.chat_input("Ask me anything!"):
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    )
 
     with st.chat_message("user"):
-        st.markdown(prompt)
+        st.write(prompt)
 
-    client = st.session_state.client
+    conversation_buffer = (
+        st.session_state.messages[-6:]
+    )
 
-    if st.session_state.waiting_for_more_info:
-        if prompt.lower().strip() in ["yes", "y", "yeah", "yep"]:
-            conversation = (
-                [system_prompt]
-                + st.session_state.messages[-4:]
+
+    conversation = (
+        [system_prompt]
+        + conversation_buffer
+    )
+
+if llm_choice == "OpenAI":
+
+        if st.session_state.openai_client is None:
+
+            st.error(
+                "OpenAI API key was not found. "
+                "Please add openai_api_key to Streamlit secrets."
             )
 
-            stream = client.chat.completions.create(
-                model=model_to_use,
-                messages=conversation,
-                stream=True
-            )
-
-            # Display additional information
-            with st.chat_message("assistant"):
-                response = st.write_stream(stream)
-
-            # Save additional response
-            st.session_state.messages.append(
-                {"role": "assistant", "content": response}
-            )
-
-            # Ask again
-            more_info_question = "Do you want more info?"
-
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": more_info_question
-                }
-            )
-
-            with st.chat_message("assistant"):
-                st.write(more_info_question)
-
-        # User does not want more information
         else:
-            st.session_state.waiting_for_more_info = False
 
-            no_response = "Okay! What can I help you with?"
+            try:
 
-            st.session_state.messages.append(
-                {
-                    "role": "assistant",
-                    "content": no_response
-                }
+                with st.chat_message("assistant"):
+
+                    stream = (
+                        st.session_state.openai_client
+                        .chat.completions.create(
+                            model="gpt-5.6",
+                            messages=conversation,
+                            stream=True
+                        )
+                    )
+
+                    response = st.write_stream(
+                        stream
+                    )
+
+
+                # Save assistant response
+                st.session_state.messages.append(
+                    {
+                        "role": "assistant",
+                        "content": response
+                    }
+                )
+
+
+            except Exception as e:
+
+                st.error(
+                    f"OpenAI API error: {e}"
+                )
+
+elif llm_choice == "Google Gemini":
+
+        if st.session_state.gemini_client is None:
+
+            st.error(
+                "Google Gemini API key was not found. "
+                "Please add gemini_api_key to Streamlit secrets."
             )
 
-            with st.chat_message("assistant"):
-                st.write(no_response)
+        else:
 
-    # User is asking a new question
-    else:
+            try:
+                gemini_prompt = ""
 
-        # Save the current topic
-        st.session_state.current_topic = prompt
+                for message in conversation:
 
-        # Conversation buffer
-        # Keep the system prompt plus the last 4 messages.
-        # The last 4 messages represent 2 user/LLM exchanges.
-        conversation = (
-            [system_prompt]
-            + st.session_state.messages[-4:]
-        )
+                    if message["role"] == "system":
 
-        # Send conversation to OpenAI
-        stream = client.chat.completions.create(
-            model=model_to_use,
-            messages=conversation,
-            stream=True
-        )
+                        gemini_prompt += (
+                            "SYSTEM INSTRUCTIONS:\n"
+                            + message["content"]
+                            + "\n\n"
+                        )
 
-        # Display LLM response
-        with st.chat_message("assistant"):
-            response = st.write_stream(stream)
+                    elif message["role"] == "user":
 
-        # Save LLM response
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": response
-            }
-        )
+                        gemini_prompt += (
+                            "USER:\n"
+                            + message["content"]
+                            + "\n\n"
+                        )
 
-        # Ask if user wants more information
-        more_info_question = "Do you want more info?"
+                    elif message["role"] == "assistant":
 
-        st.session_state.messages.append(
-            {
-                "role": "assistant",
-                "content": more_info_question
-            }
-        )
+                        gemini_prompt += (
+                            "ASSISTANT:\n"
+                            + message["content"]
+                            + "\n\n"
+                        )
 
-        with st.chat_message("assistant"):
-            st.write(more_info_question)
 
-        # Tell the chatbot to expect Yes or No
-        st.session_state.waiting_for_more_info = True
+                with st.chat_message("assistant"):
+
+                    response = (
+                        st.session_state.gemini_client
+                        .models.generate_content(
+                            model="gemini-2.5-pro",
+                            contents=gemini_prompt
+                        )
+                    )
+
+                    if response.text:
+
+                        st.write(
+                            response.text
+                        )
+
+                    else:
+
+                        st.error(
+                            "Gemini did not return a response."
+                        )
+
+                if response.text:
+
+                    st.session_state.messages.append(
+                        {
+                            "role": "assistant",
+                            "content": response.text
+                        }
+                    )
+
+
+            except Exception as e:
+
+                st.error(
+                    f"Google Gemini API error: {e}"
+                )
