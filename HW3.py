@@ -44,14 +44,14 @@ else:
     st.sidebar.write("Model: gemini-2.5-pro")
 
 if 'openai_client' not in st.session_state:
-    openai_api_key = st.secrets.get("openai_api_key")
+    openai_api_key = st.secrets("openai_api_key")
     if openai_api_key:
         st.session_state.openai_client = OpenAI(api_key=openai_api_key)
 else:
     st.session_state.openai_client = None
 
 if 'gemini_client' not in st.session_state:
-    gemini_api_key = st.secrets.get("gemini_api_key")
+    gemini_api_key = st.secrets("gemini_api_key")
     if gemini_api_key:
         st.session_state.gemini_client = genai.Client(api_key=gemini_api_key)
 else:
