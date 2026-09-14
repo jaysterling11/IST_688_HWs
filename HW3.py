@@ -36,35 +36,60 @@ llm_choice = st.sidebar.selectbox(
 )
 
 if llm_choice == "OpenAI":
-
     st.sidebar.write("Model: gpt-5.6")
 
 else:
-
     st.sidebar.write("Model: gemini-2.5-pro")
 
 if 'openai_client' not in st.session_state:
-    openai_api_key = st.secrets["openai_api_key"]
-    if openai_api_key:
-        st.session_state.openai_client = OpenAI(api_key=openai_api_key)
-else:
-    st.session_state.openai_client = None
+    try:
+        openai_api_key = st.secrets["openai_api_key"]
 
-if 'gemini_client' not in st.session_state:
-    gemini_api_key = st.secrets["gemini_api_key"]
-    if gemini_api_key:
-        st.session_state.gemini_client = genai.Client(api_key=gemini_api_key)
-else:
-    st.session_state.gemini_client = None
+        if openai_api_key:
+            st.session_state.openai_client = OpenAI(api_key=openai_api_key)
+        else:
+            st.session_state.openai_client = None
+    except Exception:
+        st.session_state.openai_client = None
+
+if "gemini_client" not in st.session_state:
+    try:
+        gemini_api_key = st.secrets["gemini_api_key"]
+
+        if gemini_api_key:
+            st.session_state.gemini_client = genai.Client(
+                api_key=gemini_api_key
+            )
+        else:
+            st.session_state.gemini_client = None
+
+    except Exception:
+        st.session_state.gemini_client = None
 
 def read_url_content(url):
     try:
-        response = requests.get(url)
-        response.raise_for_status() # Raise an exception for HTTP errors
-        soup = BeautifulSoup(response.content, 'html.parser')
-        return soup.get_text()
+        response = requests.get(
+            url,
+            timeout=15
+        )
+
+        response.raise_for_status()
+        soup = BeautifulSoup(
+            response.content,
+            "html.parser"
+        )
+
+        return soup.get_text(
+            separator=" ",
+            strip=True
+        )
+
     except requests.RequestException as e:
-        print(f"Error reading {url}: {e}")
+
+        st.error(
+            f"Error reading {url}: {e}"
+        )
+
         return None
 
 documents = []
