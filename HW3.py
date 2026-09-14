@@ -39,7 +39,7 @@ if llm_choice == "OpenAI":
     st.sidebar.write("Model: gpt-5.6")
 
 else:
-    st.sidebar.write("Model: gemini-2.5-pro")
+    st.sidebar.write("Model: gemini-3.1-pro-preview")
 
 if 'openai_client' not in st.session_state:
     try:
@@ -276,7 +276,7 @@ elif llm_choice == "Google Gemini":
                     response = (
                         st.session_state.gemini_client
                         .models.generate_content(
-                            model="gemini-2.5-pro",
+                            model="gemini-3.1-pro-preview",
                             contents=gemini_prompt
                         )
                     )
