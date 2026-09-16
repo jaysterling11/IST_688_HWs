@@ -4,3 +4,5 @@ chromadb
 pysqlite3-binary
 beautifulsoup4
 numpy
+google-genai
+PyMuPDF
