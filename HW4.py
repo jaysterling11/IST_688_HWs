@@ -29,6 +29,16 @@ def extract_text_from_html(html_path):
     return soup.get_text(separator=" ", strip=True)
 
 
+# CHUNKING METHOD: fixed-size (position-based) chunking, 2 chunks per doc
+#
+# Each org page is split into exactly two chunks by cutting the text at
+# its midpoint (character count), snapped to the nearest whitespace so we
+# don't split a word in half. We chose this over semantic chunking
+# because the assignment specifically asks for two chunks per document, so a
+# simple midpoint split reliably produces exactly two pieces without
+# needing to detect variable-length sections. Also, the org pages are short, single-topic pages (a description, contact
+# info, meeting details), so an even split still keeps each half reasonably coherent.
+
 def chunk_text(text):
     """Splits text into two roughly equal chunks, breaking at whitespace."""
     midpoint = len(text) // 2
