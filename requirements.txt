@@ -1,6 +1,6 @@
 streamlit
-requests
-beautifulsoup4
 openai
-google-genai
+chromadb
+pysqlite3-binary
+beautifulsoup4
 numpy
