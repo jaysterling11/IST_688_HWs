@@ -150,7 +150,7 @@ st.write(
     "HW4 version, this bot doesn't automatically search the knowledge base "
     "on every message. Instead, the LLM is given a `relevant_club_info` "
     "tool and decides on its own when a lookup is needed and what to "
-    "search for. I remember the last 5 exchanges in our conversation."
+    "search for."
 )
 
 st.sidebar.header("Chatbot Settings")
