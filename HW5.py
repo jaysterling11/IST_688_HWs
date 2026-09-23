@@ -157,7 +157,7 @@ st.sidebar.header("Chatbot Settings")
 st.sidebar.write("Model: gpt-5-mini")
 
 if "hw5_messages" not in st.session_state:
-    st.session_state.hw4_messages = []
+    st.session_state.hw5_messages = []
 
 for message in st.session_state.hw5_messages:
     with st.chat_message(message["role"]):
@@ -204,7 +204,6 @@ if prompt:
     answer = first_message.content or ""
  
     if tool_calls:
-        # Run the tool the model asked for
         args = json.loads(tool_calls[0].function.arguments)
         query = args.get("query", prompt)
         rag_context, sources = relevant_club_info(query)
