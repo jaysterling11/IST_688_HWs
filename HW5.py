@@ -154,7 +154,7 @@ st.write(
 )
 
 st.sidebar.header("Chatbot Settings")
-st.sidebar.write("Model: {MODEL}")
+st.sidebar.write("Model: gpt-5-mini")
 
 if "hw5_messages" not in st.session_state:
     st.session_state.hw4_messages = []
@@ -201,6 +201,7 @@ if prompt:
     )
     first_message = first_response.choices[0].message
     tool_calls = first_message.tool_calls
+    answer = first_message.content or ""
  
     if tool_calls:
         # Run the tool the model asked for
