@@ -5,6 +5,7 @@ homework2_page = st.Page("HW2.py", title="Homework 2 - URL Summarizer with Multi
 homework3_page = st.Page("HW3.py", title="Homework 3 - Chatbot with Memory and Context", icon="3️⃣")
 homework4_page = st.Page("HW4.py", title="Homework 4 - An iSchool Chatbot Using RAG", icon="4️⃣")
 homework5_page = st.Page("HW5.py", title="Homework 5 - Enhance Your Chatbot", icon="5️⃣")
+homework7_page = st.Page("HW7.py", title="Homework 7 - News Information Bot", icon="7️⃣")
 
-pg = st.navigation([homework1_page, homework2_page, homework3_page, homework4_page, homework5_page])
+pg = st.navigation([homework1_page, homework2_page, homework3_page, homework4_page, homework5_page, homework7_page])
 pg.run()
